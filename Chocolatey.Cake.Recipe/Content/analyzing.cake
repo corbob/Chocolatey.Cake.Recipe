@@ -63,7 +63,7 @@ BuildParameters.Tasks.CreateIssuesReportTask = Task("CreateIssuesReport")
             "./",
             issueReportFile);
 
-        if (!BuildParameters.IsLocalBuild && FileExists(issueReportFile))
+        if (FileExists(issueReportFile))
         {
             BuildParameters.BuildProvider.UploadArtifact(issueReportFile);
         }

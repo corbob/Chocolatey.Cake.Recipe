@@ -21,7 +21,7 @@ BuildParameters.Tasks.TestNUnitTask = Task("Test-NUnit")
             Information("Running OpenCover and NUnit...");
 
             OpenCover(tool => {
-                tool.NUnit3(GetFiles(BuildParameters.Paths.Directories.PublishedNUnitTests + (BuildParameters.TestFilePattern ?? "/**/*Tests.dll")), new NUnit3Settings {
+                tool.NUnit3(GetFiles(BuildParameters.Paths.Directories.PublishedNUnitTests + (BuildParameters.TestFilePattern ?? "/**/*[tT]ests.dll")), new NUnit3Settings {
                     Work = BuildParameters.Paths.Directories.NUnitTestResults
                 });
             },
@@ -40,7 +40,7 @@ BuildParameters.Tasks.TestNUnitTask = Task("Test-NUnit")
             Information("Running OpenCover and NUnit...");
 
             // OpenCover doesn't work on anything non-windows, so let's just run NUnit by itself
-            NUnit3(GetFiles(BuildParameters.Paths.Directories.PublishedNUnitTests + (BuildParameters.TestFilePattern ?? "/**/*Tests.dll")), new NUnit3Settings {
+            NUnit3(GetFiles(BuildParameters.Paths.Directories.PublishedNUnitTests + (BuildParameters.TestFilePattern ?? "/**/*[tT]ests.dll")), new NUnit3Settings {
                 Work = BuildParameters.Paths.Directories.NUnitTestResults
             });
         }
@@ -51,14 +51,14 @@ BuildParameters.Tasks.TestxUnitTask = Task("Test-xUnit")
     .IsDependentOn("Install-OpenCover")
     .WithCriteria(() => DirectoryExists(BuildParameters.Paths.Directories.PublishedxUnitTests), "Skipping because there are no published xUnit tests")
     .Does(() => RequireTool(ToolSettings.XUnitTool, () => {
-    EnsureDirectoryExists(BuildParameters.Paths.Directories.xUnitTestResults);
+        EnsureDirectoryExists(BuildParameters.Paths.Directories.xUnitTestResults);
 
         if (BuildParameters.BuildAgentOperatingSystem == PlatformFamily.Windows)
         {
             Information("Running OpenCover and xUnit...");
 
             OpenCover(tool => {
-                tool.XUnit2(GetFiles(BuildParameters.Paths.Directories.PublishedxUnitTests + (BuildParameters.TestFilePattern ?? "/**/*Tests.dll")), new XUnit2Settings {
+                tool.XUnit2(GetFiles(BuildParameters.Paths.Directories.PublishedxUnitTests + (BuildParameters.TestFilePattern ?? "/**/*[tT]ests.dll")), new XUnit2Settings {
                     OutputDirectory = BuildParameters.Paths.Directories.xUnitTestResults,
                     XmlReport = true,
                     NoAppDomain = true
@@ -79,7 +79,7 @@ BuildParameters.Tasks.TestxUnitTask = Task("Test-xUnit")
             Information("Running xUnit...");
 
             // OpenCover doesn't work on anything non-windows, so let's just run xUnit by itself
-            XUnit2(GetFiles(BuildParameters.Paths.Directories.PublishedxUnitTests + (BuildParameters.TestFilePattern ?? "/**/*Tests.dll")), new XUnit2Settings {
+            XUnit2(GetFiles(BuildParameters.Paths.Directories.PublishedxUnitTests + (BuildParameters.TestFilePattern ?? "/**/*[tT]ests.dll")), new XUnit2Settings {
                 OutputDirectory = BuildParameters.Paths.Directories.xUnitTestResults,
                 XmlReport = true,
                 NoAppDomain = true
@@ -256,8 +256,6 @@ BuildParameters.Tasks.ReportCodeCoverageMetricsTask = Task("Report-Code-Coverage
 
         foreach(var coverageFile in coverageFiles)
         {
-            BuildParameters.BuildProvider.UploadArtifact(coverageFile);
-
             XDocument doc = XDocument.Load(coverageFile.FullPath);
             XElement summary = doc.XPathSelectElement("/CoverageSession/Summary");
 
@@ -372,4 +370,26 @@ BuildParameters.Tasks.GenerateLocalCoverageReportTask = Task("Convert-OpenCoverT
     })
 );
 
-BuildParameters.Tasks.TestTask = Task("Test");
+BuildParameters.Tasks.TestTask = Task("Test")
+    .Does(() => {
+        var coverageFiles = GetFiles(BuildParameters.Paths.Directories.TestCoverage + "/coverlet/*.xml");
+        if (FileExists(BuildParameters.Paths.Files.TestCoverageOutputFilePath))
+        {
+            coverageFiles += BuildParameters.Paths.Files.TestCoverageOutputFilePath;
+        }
+
+        foreach (var coverageFile in coverageFiles)
+        {
+            BuildParameters.BuildProvider.UploadArtifact(coverageFile);
+        }
+
+        foreach (var nUnitResultFile in GetFiles(BuildParameters.Paths.Directories.NUnitTestResults + "/*.xml"))
+        {
+            BuildParameters.BuildProvider.UploadArtifact(nUnitResultFile);
+        }
+
+        foreach (var xUnitResultFile in GetFiles(BuildParameters.Paths.Directories.xUnitTestResults + "/*.xml"))
+        {
+            BuildParameters.BuildProvider.UploadArtifact(xUnitResultFile);
+        }
+});

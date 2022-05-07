@@ -143,7 +143,14 @@ BuildParameters.Tasks.BuildTask = Task("Build")
                 .WithTarget("Build")
                 .WithProperty("TreatWarningsAsErrors", BuildParameters.TreatWarningsAsErrors.ToString());
 
+            xbuildSettings.ArgumentCustomization = args => args.Append(string.Format("/filelogger /flp1:LogFile={0};Append;Encoding=ASCII", BuildParameters.Paths.Files.BuildLogFilePath.FullPath));
+
             XBuild(BuildParameters.SolutionFilePath, xbuildSettings);
+        }
+
+        if (FileExists(BuildParameters.Paths.Files.BuildLogFilePath))
+        {
+            BuildParameters.BuildProvider.UploadArtifact(BuildParameters.Paths.Files.BuildLogFilePath);
         }
 
         CopyBuildOutput();
@@ -409,9 +416,6 @@ BuildParameters.Tasks.BuildMsiTask = Task("Build-MSI")
         MSBuild(BuildParameters.SolutionFilePath, msbuildSettings);
     })
 );
-
-BuildParameters.Tasks.PackageTask = Task("Package")
-    .IsDependentOn("Export-Release-Notes");
 
 BuildParameters.Tasks.DefaultTask = Task("Default")
     .IsDependentOn("Package");
